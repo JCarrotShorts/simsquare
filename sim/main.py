@@ -1,4 +1,5 @@
 import time, random, math
+from operator import attrgetter
 class Universe:
 
     def __init__(self,
@@ -100,6 +101,15 @@ class Cell:
     def spawn_cow(self):
         self.life.append(Cow(self))
 
+    def life_by_type(self, org_type):
+        for org in self.life:
+            if type(org) == org_type:
+                return org
+
+    def grass_height(self):
+        grass = self.life_by_type(Grass)
+        return grass.height if grass else  0
+
     def cycle(self):
         for life in self.life:
             life.cycle()
@@ -111,6 +121,7 @@ class Organism():
         self.birthday = cell.universe.time
         self.neighbours = self.cell.neighbours()
         self.last_cycled = cell.universe.time -1
+        self.alive = True
         cell.universe.life.append(self)
 
     # find a random empty cell next to this one
@@ -120,15 +131,32 @@ class Organism():
         empty = list(filter(empty_cell, self.neighbours))
        # print(f'boo {len(empty)} empty cells')
         return random.choice(empty) if len(empty) else False
+
+    def find_best_neighbouring_cell(self):
+        best_cell = False
+        best_rank = 0
+        for cell in self.neighbours:
+            rank = self.rank_cell(cell)
+            if rank > best_rank: # todo cope better with a draw
+                best_cell = cell
+                best_rank = rank
+        print(f"best rank is {best_rank} at {best_cell.x},{best_cell.y}" if best_rank else "it all sux")
+        return best_cell
+
+
+    # rate each cell in terms of desirability for motion
+    def rank_cell(self, cell):
+        return 5
+        #+ grass height
+
     def cycle(self):
-        if self.last_cycled < self.cell.universe.time:
+        if self.alive and self.last_cycled < self.cell.universe.time:
             self.live()
             self.reproduce()
             self.last_cycled = self.cell.universe.time
 
     def __repr__(self):
         return self.__str__()
-
     def plot_size(self):
         return 5
     def plot_marker(self):
@@ -174,20 +202,28 @@ class   Cow(Organism):
         self.thirst = 100
         self.age = 0
         self.reach = 1
-        self.alive = True
 
     def live(self):
         self.hunger -= 5
-        self.cell.universe.move_organism(self)
-        if self.thirst < 1 or self.hunger < 1:
-            self.alive = False
-        #print(f"The cow is {self.cell.universe.time - self.birthday} cycles old, status:{self.hunger}:{self.thirst}")
+        if self.cell.grass_height() < 10:
+            self.cell.universe.move_organism(self, self.find_best_neighbouring_cell())
+        else:
+            self.hunger += 10
+            self.cell.life_by_type(Grass).height -= 10
 
+        if self.thirst < 1 or self.hunger < 1:
+            print("RIP cow")
+            self.alive = False
+
+    def rank_cell(self, cell):
+        return cell.grass_height()
+
+        #print(f"The cow is {self.cell.universe.time - self.birthday} cycles old, status:{self.hunger}:{self.thirst}")
     def reproduce(self):
         pass
 
     def render(self):
-        return('C')
+        return('C' if self.alive else '+')
 
     def __str__(self):
         return(f'cow {self.hunger}:{self.thirst}')
@@ -200,9 +236,9 @@ class   Cow(Organism):
         return 'black'
 
 def main():
-    cycles = 40
+    cycles = 90
     print("Simulation started")
-    universe = Universe(30,30)
+    universe = Universe(5,5)
     for cycle in range(cycles):
         print(f"cycle {cycle}")
         universe.cycle()
@@ -212,5 +248,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
