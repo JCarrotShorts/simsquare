@@ -1,8 +1,12 @@
+
 import time, random, math
 from operator import attrgetter
+import pygame
+import io
+from urllib.request import urlopen
+from colour import Color
 
 class Universe:
-
     def __init__(self,
             size_x = 10,
             size_y = 10,
@@ -47,10 +51,10 @@ class Universe:
                 self.rows[x][y].cycle()
         #print('done cycling')
 
-    def print(self):
+    def print(self, window):
         for x in range(0, self.size_x):
             for y in range(0, self.size_y):
-                print(self.rows[x][y].render(), end='')
+                print(self.rows[x][y].render(x, y, window), end='')
             print()
 
     def random_cell(self):
@@ -79,10 +83,10 @@ class Cell:
         # todo
 
     # create a string representing my cell
-    def render(self):
+    def render(self, x, y, window):
         text = ["  "]
         for life in self.life:
-            text.append(life.render())
+            text.append(life.render(x, y, window))
         full = ''.join(text)[-3:]
         full += '.'
         return full[0:3]
@@ -185,8 +189,16 @@ class Grass(Organism):
                 target.seed_grass()
                 self.height -= 20
                 # print ("we made new grass, woot")
+    def render(self, x, y, window):
+        rgb = []
+        i = 0
+        for a in list(Color("brown").range_to(Color("green"), 40)):
+            rgb.insert(i, [])
+            for b in Color.get_rgb(a):
+                rgb[i].append(round(b * 255))
+            i += 1
 
-    def render(self):
+        pygame.draw.rect(window, rgb[int(self.height)-1], (x*40, y*40, 40, 40)) if self.height <= 40 else pygame.draw.rect(window, rgb[39], (x*40, y*40, 40, 40))
         return('M' if self.height > 40 else 'm' if self.height > 22 else ',')
     def __str__(self):
         return(f'grass {self.height}')
@@ -223,15 +235,19 @@ class   Cow(Organism):
         #print(f"The cow is {self.cell.universe.time - self.birthday} cycles old, status:{self.hunger}:{self.thirst}")
     def reproduce(self):
         #print(f"i'm {self.hunger} hungry")
-        if self.age > 9 and self.hunger > 75 and len(self.cell.life) < 2:
+        if self.age > 9 and self.hunger > 75 and len(self.cell.life):
             self.cell.spawn_cow()
             print("cow is born")
             self.hunger =- 0
-    def render(self):
+    def render(self, x, y, window):
         if self.alive:
-            return 'C' if self.age > 9 else 'c'
+            image_file = io.BytesIO(urlopen("https://thumbs.dreamstime.com/t/cute-simple-cow-vector-graphic-icon-cartoon-cow-animal-square-face-web-print-illustration-example-milk-products-cute-126091010.jpg").read())
         else:
-            return ''
+            image_file = io.BytesIO(urlopen("http://i.ebayimg.com/00/s/OTYwWDEyMDI=/z/ZbgAAOSwEK9T5Cr1/$_57.JPG").read())
+        image = pygame.transform.scale(pygame.image.load(image_file), (30, 30))
+        window.blit(image, (x*40+5, y*40+5))
+        return('C' if self.alive else '+')
+
     def __str__(self):
         return(f'cow {self.hunger}:{self.thirst}')
 
@@ -243,16 +259,33 @@ class   Cow(Organism):
         return 'black'
 
 def main():
-    cycles = 30
+    pygame.init()
+    clock = pygame.time.Clock()
+    pygame.display.set_caption("SquareSim")
     print("Simulation started")
-    universe = Universe(5,5)
-    for cycle in range(cycles):
-        print(f"cycle {cycle}")
-        universe.cycle()
-        universe.print()
-        #time.sleep(2)
+    xsize = 10
+    ysize = 10
+    window = pygame.display.set_mode((xsize*40,ysize*40))
+    universe = Universe(xsize,ysize)
+    cycle = 1;
+    window.fill((0,255,255))
+    while True:
+        event = pygame.event.poll()
+        if event.type == pygame.QUIT:
+            break
+        if event.type == pygame.KEYDOWN:
+            print(f"time is {universe.time}")
+            print(f"cycle -  {cycle}")
+            if event.key == pygame.K_SPACE:
+                window.fill((0,255,255))
+                cycle = cycle + 1
+                universe.cycle()
+                universe.print(window)
+                print(f"time is {universe.time}")
+        pygame.display.update()
+        #clock.tick(60)
+    pygame.quit()
     print("Simulation complete")
 
 if __name__ == "__main__":
     main()
-
