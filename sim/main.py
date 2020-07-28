@@ -1,5 +1,6 @@
 import time, random, math
 from operator import attrgetter
+
 class Universe:
 
     def __init__(self,
@@ -119,6 +120,7 @@ class Organism():
     def __init__(self, cell):
         self.cell = cell
         self.birthday = cell.universe.time
+        self.age = 0
         self.neighbours = self.cell.neighbours()
         self.last_cycled = cell.universe.time -1
         self.alive = True
@@ -140,7 +142,7 @@ class Organism():
             if rank > best_rank: # todo cope better with a draw
                 best_cell = cell
                 best_rank = rank
-        print(f"best rank is {best_rank} at {best_cell.x},{best_cell.y}" if best_rank else "it all sux")
+       # print(f"best rank is {best_rank} at {best_cell.x},{best_cell.y}" if best_rank else "it all sux")
         return best_cell
 
 
@@ -151,6 +153,7 @@ class Organism():
 
     def cycle(self):
         if self.alive and self.last_cycled < self.cell.universe.time:
+            self.age += 1
             self.live()
             self.reproduce()
             self.last_cycled = self.cell.universe.time
@@ -200,7 +203,6 @@ class   Cow(Organism):
         super().__init__(cell)
         self.hunger = 100
         self.thirst = 100
-        self.age = 0
         self.reach = 1
 
     def live(self):
@@ -211,7 +213,7 @@ class   Cow(Organism):
             self.hunger += 10
             self.cell.life_by_type(Grass).height -= 10
 
-        if self.thirst < 1 or self.hunger < 1:
+        if self.thirst < 1 or self.hunger < 1 or self.age > 50:
             print("RIP cow")
             self.alive = False
 
@@ -220,11 +222,16 @@ class   Cow(Organism):
 
         #print(f"The cow is {self.cell.universe.time - self.birthday} cycles old, status:{self.hunger}:{self.thirst}")
     def reproduce(self):
-        pass
-
+        #print(f"i'm {self.hunger} hungry")
+        if self.age > 9 and self.hunger > 75 and len(self.cell.life) < 2:
+            self.cell.spawn_cow()
+            print("cow is born")
+            self.hunger =- 0
     def render(self):
-        return('C' if self.alive else '+')
-
+        if self.alive:
+            return 'C' if self.age > 9 else 'c'
+        else:
+            return ''
     def __str__(self):
         return(f'cow {self.hunger}:{self.thirst}')
 
@@ -236,7 +243,7 @@ class   Cow(Organism):
         return 'black'
 
 def main():
-    cycles = 90
+    cycles = 30
     print("Simulation started")
     universe = Universe(5,5)
     for cycle in range(cycles):
