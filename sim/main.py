@@ -1,6 +1,8 @@
 import time, random, math
 from operator import attrgetter
 
+# This code is backed up to git here: https://github.com/ErichBSchulz/simsquare
+
 class Universe:
 
     def __init__(self,
@@ -13,17 +15,32 @@ class Universe:
         self.time = 0
         self.blank_universe()
         self.life = []
+        self.types = {
+            'Grass': Grass,
+            'Cow': Cow,
+            'Wolf': Wolf,
+        }
+        self.density = {}
+        # make a set of blank arrays
 
     # make as set of rowws with cells
     def blank_universe(self):
-        self.rows = []
-        for x in range(0, self.size_x):
-            row = []
-            for y in range(0, self.size_y):
-                # print(f"x,y = {x}, {y}")
-                cell = Cell(self, x,y)
-                row.append(cell)
-            self.rows.append(row)
+        self.rows = [[Cell(self, x,y) for x in range(self.size_x)] for y in range(self.size_y)]
+
+    def refresh_densities(self):
+        scan_distance = 3
+        for class_type in self.types.keys():
+            self.density[class_type] = [[0.0 for x in range(self.size_x)] for y in range(self.size_y)]
+        for org in self.life:
+            ox = org.cell.x
+            oy = org.cell.y
+            class_type = type(org).__name__
+            for x in range(max([0,ox-scan_distance]), min([self.size_x,ox+scan_distance+1])):
+                for y in range(max([0,oy-scan_distance]), min([self.size_y,oy+scan_distance+1])):
+                    distance = abs(x-ox) + abs(y-oy)
+                    orginess = 1/(distance+0.5)
+                    self.density[class_type][x][y] += orginess
+                    #print(f"{self.density[class_type][x][y]} - {class_type}iness = {orginess} from {distance} at ({x}, {y})")
 
     def populate(self):
         # print('populating')
@@ -35,12 +52,15 @@ class Universe:
         if self.time == 10:
             #print('spawning cow')
             self.random_cell().spawn_cow()
+        if self.time == 30:
+            self.random_cell().spawn_wolf()
         # print('done populating')
 
     # cycle all the cells
     def cycle(self):
         self.time += 1
         self.populate()
+        self.refresh_densities()
         for x in range(0, self.size_x):
             for y in range(0, self.size_y):
                 #print(f'[{x},{y}]', end='')
@@ -48,6 +68,13 @@ class Universe:
         #print('done cycling')
 
     def print(self):
+        for class_type in self.types.keys():
+            print(f"{class_type} density")
+            for x in range(0, self.size_x):
+                for y in range(0, self.size_y):
+                    print(f" {self.density[class_type][x][y]:0.2f} ", end='')
+                print()
+
         for x in range(0, self.size_x):
             for y in range(0, self.size_y):
                 print(self.rows[x][y].render(), end='')
@@ -75,7 +102,7 @@ class Cell:
         self.x = x
         self.y = y
         self.life = []
-        self.fertility = 20
+        self.fertility = 30
         # todo
 
     # create a string representing my cell
@@ -101,6 +128,9 @@ class Cell:
 
     def spawn_cow(self):
         self.life.append(Cow(self))
+
+    def spawn_wolf(self):
+        self.life.append(Wolf(self))
 
     def life_by_type(self, org_type):
         for org in self.life:
@@ -197,15 +227,13 @@ class Grass(Organism):
     def plot_color(self):
         return 'green'
 
-
-class   Cow(Organism):
+class Animal(Organism):
     def __init__(self, cell):
         super().__init__(cell)
-        self.hunger = 100
-        self.thirst = 100
-        self.reach = 1
-
+    def reproduce(self):
+        pass
     def live(self):
+        # print("cow living")
         self.hunger -= 5
         if self.cell.grass_height() < 10:
             self.cell.universe.move_organism(self, self.find_best_neighbouring_cell())
@@ -213,20 +241,28 @@ class   Cow(Organism):
             self.hunger += 10
             self.cell.life_by_type(Grass).height -= 10
 
-        if self.thirst < 1 or self.hunger < 1 or self.age > 50:
-            print("RIP cow")
+        if self.thirst < 1 or self.hunger < 1 or self.age > 20:
+            print("RIP")
             self.alive = False
+class Cow(Animal):
+    def __init__(self, cell):
+        super().__init__(cell)
+        self.hunger = 100
+        self.thirst = 100
+        self.reach = 1
+
+
 
     def rank_cell(self, cell):
         return cell.grass_height()
 
         #print(f"The cow is {self.cell.universe.time - self.birthday} cycles old, status:{self.hunger}:{self.thirst}")
     def reproduce(self):
-        #print(f"i'm {self.hunger} hungry")
-        if self.age > 9 and self.hunger > 75 and len(self.cell.life) < 2:
+        #print(f"i'm {self.hunger} hungry, {self.age} old and I have {len(self.cell.life)-1} buddies")
+        if self.age > 9 and self.hunger > 75 and len(self.cell.life) < 3:
             self.cell.spawn_cow()
             print("cow is born")
-            self.hunger =- 0
+            self.hunger -= 50
     def render(self):
         if self.alive:
             return 'C' if self.age > 9 else 'c'
@@ -242,8 +278,22 @@ class   Cow(Organism):
     def plot_color(self):
         return 'black'
 
+class Wolf(Animal):
+    def __init__(self, cell):
+        super().__init__(cell)
+        self.hunger = 100
+        self.thirst = 100
+        self.age = 0
+        self.alive = True
+
+    def render(self):
+        if self.alive:
+            return '🐺' if self.age > 9 else '🐺'
+        else:
+            return ''
+    #def hunt()
 def main():
-    cycles = 30
+    cycles = 50
     print("Simulation started")
     universe = Universe(5,5)
     for cycle in range(cycles):
@@ -255,4 +305,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
