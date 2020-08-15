@@ -10,7 +10,7 @@ class Universe:
             size_y = 10,
             grassiness = 0.50,
             ):
-        print('initialising Universe')
+        print('Initialising Universe')
         self.size_x = size_x
         self.size_y = size_y
         self.time = 0
