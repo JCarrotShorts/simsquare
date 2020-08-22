@@ -32,6 +32,14 @@ class Universe:
             for y in range(self.size_y):
                 if random.random() < grassiness:
                     self.rows[x][y].seed_grass()
+    
+    def season(self,time=False):
+        if not time:
+            time=self.time
+        year_length = 40
+        seasons = ['spring','summer','autumn','winter']
+        return seasons[int(time%year_length* len (seasons)/year_length)]
+        
 
     def refresh_densities(self):
         scan_distance = 3
